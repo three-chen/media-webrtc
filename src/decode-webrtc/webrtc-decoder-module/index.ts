@@ -4,19 +4,17 @@ import HWebSocket from './hWebSocket/hWebSocket'
 import type { RoomSocketEvent, rtcConfig } from './hWebSocket/types'
 
 import { configuration } from './constants'
-import { getObjectValues } from './utils'
+import { g4, getObjectValues } from './utils'
 
 const PeerConnection = window.RTCPeerConnection
 
 class LiveRTC extends EventEmitter {
-  public rtcConfig: rtcConfig = {}
-
   // 本地的socket
   private socket: HWebSocket | null = null
   //保存所有与本地相连的远程peer connection， 键为socket id，值为PeerConnection类型
   private remotePeerConn: Map<string, RTCPeerConnection> | null = null
   // 保存本地socketId和所有对方的socketId
-  private socketId: string = ''
+  public rtcConfig: rtcConfig = {}
   private connSocketIds: string[] = []
 
   // 本地流
@@ -24,17 +22,21 @@ class LiveRTC extends EventEmitter {
   //远程流的id
   private remoteStreams: string[] = []
 
-  public constructor(roomAlias: string, username: string) {
+  // public setLocalStream(stream: MediaStream) {
+  //   this.localStream = stream
+  // }
+
+  public constructor(roomAlias: string) {
     super()
     // 将EventEmiiter调用的this指定为LiveRTC的this
     this.LiveRTCenv = this
     this.rtcConfig.roomAlias = roomAlias
-    this.rtcConfig.userName = username
+    this.rtcConfig.socketId = `anony-${g4()}${g4()}-${g4()}${g4()}`
     this.init()
   }
 
   public init() {
-    this.on('_message', this.handleMessage)
+    // this.on('_message', this.handleMessage)
     this.on('_joined', this.handleJoined)
     this.on('_new_peer', this.handleNewPeer)
     this.on('_ready', this.handleReady)
@@ -60,8 +62,7 @@ class LiveRTC extends EventEmitter {
         eventName: '__joinRoom',
         data: {
           roomAlias: that.rtcConfig.roomAlias,
-          // userName: `anony-${g4()}${g4()}-${g4()}${g4()}`
-          userName: that.rtcConfig.userName
+          socketId: that.rtcConfig.socketId
         }
       }
       that.socket!.ws.send(JSON.stringify(roomSocketEvent))
@@ -80,7 +81,7 @@ class LiveRTC extends EventEmitter {
   public handleAddStream(socketIds: string[]) {
     const that = this
 
-    if (that.localStream && socketIds) {
+    if (socketIds) {
       // 拿到remotePeerConn中的socketIds对应的peerConns
       const remotepcs: RTCPeerConnection[] = []
       that.remotePeerConn!.forEach(function (value, key) {
@@ -90,42 +91,45 @@ class LiveRTC extends EventEmitter {
       })
 
       for (const remotepc of remotepcs) {
-        for (const track of that.localStream.getTracks()) {
-          remotepc.addTrack(track, that.localStream)
-        }
+        // for (const track of that.localStream.getTracks()) {
+        //   remotepc.addTrack(track, that.localStream)
+        // }
       }
     } else {
-      console.log('stream or peerConn is not ready', this.localStream)
+      console.log('stream or peerConn is not ready')
     }
   }
 
   public async handleCreateStream(constraints?: MediaStreamConstraints) {
     const that = this
 
-    navigator.mediaDevices
-      .getUserMedia(constraints)
-      .then((stream: MediaStream) => {
-        that.localStream = stream
+    // if (that.localStream) {
+    that.emit('_ready')
+    // }
 
-        that.emit('_ready')
+    // navigator.mediaDevices
+    //   .getUserMedia(constraints)
+    //   .then((stream: MediaStream) => {
+    //     that.localStream = stream
 
-        const video = document.createElement('video')
-        video.srcObject = stream
-        video.setAttribute('class', 'video')
-        video.setAttribute('autoplay', 'true')
-        video.setAttribute('controls', 'true')
-        video.setAttribute('playsinline', 'true')
-        video.setAttribute('id', 'local')
-        that.rtcConfig.localVideoBox!.appendChild(video)
-      })
-      .catch(err => {
-        console.log(err.name + ': ' + err.message)
-      })
+    //     that.emit('_ready')
+
+    //     const video = document.createElement('video')
+    //     video.srcObject = stream
+    //     video.setAttribute('class', 'video')
+    //     video.setAttribute('autoplay', 'true')
+    //     video.setAttribute('controls', 'true')
+    //     video.setAttribute('playsinline', 'true')
+    //     video.setAttribute('id', 'local')
+    //     that.rtcConfig.localVideoBox!.appendChild(video)
+    //   })
+    //   .catch(err => {
+    //     console.log(err.name + ': ' + err.message)
+    //   })
   }
 
-  public attachBox(mediaEl: HTMLDivElement, chatEl: HTMLDivElement) {
-    this.rtcConfig.localVideoBox = mediaEl
-    this.rtcConfig.localChatBox = chatEl
+  public attachMediaElement(videoEl: HTMLVideoElement) {
+    this.rtcConfig.localVideoEl = videoEl
   }
 
   /**
@@ -145,30 +149,31 @@ class LiveRTC extends EventEmitter {
             iceCandidate: event.candidate
           }
         }
-        // console.log('send ice candidate', roomSocketEvent)
+        console.log('send ice candidate', roomSocketEvent, this.rtcConfig.socketId)
 
         that.socket!.ws.send(JSON.stringify(roomSocketEvent))
       }
     }
     pc.ontrack = (event: any) => {
-      console.log('ontrack steams', event)
+      console.log('ontrack steams', event, this.rtcConfig.socketId)
 
       if (that.remoteStreams.indexOf(event.streams[0].id) === -1) {
-        const video = document.createElement('video')
-        video.srcObject = event.streams[0]
-        video.setAttribute('class', 'video')
-        video.setAttribute('autoplay', 'true')
-        video.setAttribute('controls', 'true')
-        video.setAttribute('playsinline', 'true')
-        video.setAttribute('id', socketId)
-        that.rtcConfig.localVideoBox!.appendChild(video)
+        //   const video = document.createElement('video')
+        //   video.srcObject = event.streams[0]
+        //   video.setAttribute('class', 'video')
+        //   video.setAttribute('autoplay', 'true')
+        //   video.setAttribute('controls', 'true')
+        //   video.setAttribute('playsinline', 'true')
+        //   video.setAttribute('id', socketId)
+        //   that.rtcConfig.localVideoBox!.appendChild(video)
+        that.rtcConfig.localVideoEl!.srcObject = event.streams[0]
 
         that.remoteStreams.push(event.streams[0].id)
       }
     }
     pc.oniceconnectionstatechange = (event: any) => {
       if (pc.connectionState === 'connected') {
-        console.log('peers connected')
+        console.log('peers connected', this.rtcConfig.socketId)
       }
     }
 
@@ -194,6 +199,8 @@ class LiveRTC extends EventEmitter {
 
     for (const socketId of socketIds) {
       const pc = that.remotePeerConn!.get(socketId)
+      pc!.addTransceiver('video', { direction: 'recvonly' })
+      pc!.addTransceiver('audio', { direction: 'recvonly' })
       const offer: RTCSessionDescriptionInit = await pc!.createOffer()
       await pc!.setLocalDescription(offer)
 
@@ -206,6 +213,7 @@ class LiveRTC extends EventEmitter {
       }
 
       that.socket!.ws.send(JSON.stringify(roomSocketEvent))
+      console.log('send offer', socketId, this.rtcConfig.socketId)
     }
   }
 
@@ -226,6 +234,7 @@ class LiveRTC extends EventEmitter {
       }
 
       that.socket!.ws.send(JSON.stringify(roomSocketEvent))
+      console.log('send answer', socketId, this.rtcConfig.socketId)
     }
   }
 
@@ -241,11 +250,11 @@ class LiveRTC extends EventEmitter {
     that.socket!.ws.send(JSON.stringify(roomSocketEvent))
   }
 
-  public handleMessage(userName: string, message: string) {
-    const div = document.createElement('div')
-    div.innerHTML = `<div>${userName}说：</div><div>${message}</div>`
-    this.rtcConfig.localChatBox!.appendChild(div)
-  }
+  // public handleMessage(userName: string, message: string) {
+  //   const div = document.createElement('div')
+  //   div.innerHTML = `<div>${userName}说：</div><div>${message}</div>`
+  //   this.rtcConfig.localChatBox!.appendChild(div)
+  // }
 
   /**
    *
@@ -254,11 +263,10 @@ class LiveRTC extends EventEmitter {
    * @param connSocketIds 所有远程的socketId
    */
   public async handleJoined(roomA: string, mySocketId: string, connSocketIds: string[]) {
-    console.log(roomA, mySocketId, connSocketIds)
+    console.log('joined ', roomA, mySocketId, connSocketIds)
 
     const that = this
     that.rtcConfig.roomAlias = roomA
-    that.socketId = mySocketId
     that.connSocketIds = connSocketIds
     that.remotePeerConn = that.createRemotePeerConnections(that.connSocketIds)
 
@@ -275,12 +283,14 @@ class LiveRTC extends EventEmitter {
     const rpc = that.createPeerConnection(socketId)
     that.remotePeerConn!.set(socketId, rpc)
 
+    console.log('handleNewPeer', socketId, this.rtcConfig.socketId)
     that.emit('_add_stream', [socketId])
   }
 
   public handleReady() {
     const that = this
 
+    console.log('handleReady', this.rtcConfig.socketId)
     that.emit('_add_stream', [that.connSocketIds])
     that.sendOffer(that.connSocketIds)
   }
@@ -295,9 +305,9 @@ class LiveRTC extends EventEmitter {
     const pc = that.remotePeerConn!.get(socketId)
     if (pc) {
       pc.addIceCandidate(iceCandidate)
-      console.log('add ice candidate', socketId)
+      console.log('add ice candidate', iceCandidate, socketId, this.rtcConfig.socketId)
     } else {
-      console.log('pc is not exist')
+      console.log('pc is not exist', this.rtcConfig.socketId)
     }
   }
 
@@ -309,7 +319,7 @@ class LiveRTC extends EventEmitter {
   public async handleOffer(socketId: string, offer: RTCSessionDescriptionInit) {
     const that = this
     const rpc = that.remotePeerConn!.get(socketId)
-    rpc!.setRemoteDescription(offer)
+    await rpc!.setRemoteDescription(offer)
 
     that.sendAnswer([socketId])
   }
@@ -322,9 +332,9 @@ class LiveRTC extends EventEmitter {
   public async handleAnswer(socketId: string, answer: RTCSessionDescriptionInit) {
     const that = this
     const rpc = that.remotePeerConn!.get(socketId)
-    console.log('handleAnswer', socketId, answer)
+    console.log('handleAnswer', socketId, answer, this.rtcConfig.socketId, answer.sdp)
 
-    rpc!.setRemoteDescription(answer)
+    await rpc!.setRemoteDescription(answer)
   }
 
   public disconnect() {
@@ -346,9 +356,9 @@ class LiveRTC extends EventEmitter {
       const socketIdIndex = that.connSocketIds!.indexOf(socketId)
       if (socketIdIndex !== -1) {
         that.connSocketIds!.splice(socketIdIndex, 1)
-        console.log('handleRemovePeer', socketId, '已删除')
+        console.log('handleRemovePeer', socketId, '已删除', this.rtcConfig.socketId)
       } else {
-        console.log('handleRemovePeer', socketId, '不存在')
+        console.log('handleRemovePeer', socketId, '不存在', this.rtcConfig.socketId)
       }
 
       // 从 localVideoBox 中删除 video 元素，id 为 socketId
@@ -362,7 +372,7 @@ class LiveRTC extends EventEmitter {
   public handleHeartBeat(pong: string) {
     const that = this
     that.socket!.resetHeartBeat()
-    console.log('heart beat', pong)
+    console.log('heart beat', pong, this.rtcConfig.socketId)
   }
 }
 

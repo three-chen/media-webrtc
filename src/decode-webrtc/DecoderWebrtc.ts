@@ -1,9 +1,11 @@
+import LiveRTC from './webrtc-decoder-module'
+
 // 解码httpflv
 export class DecoderWebrtc {
   public container: HTMLVideoElement | undefined = undefined
   public room: string | undefined = undefined
-  public url: string | undefined = undefined
-  public player: FlvJs.Player | null = null
+  public url: string = 'ws://localhost:4000'
+  public player: LiveRTC | null = null
 
   public static isSupported() {
     if (window.RTCPeerConnection) {
@@ -13,18 +15,10 @@ export class DecoderWebrtc {
   }
 
   constructor(room: string, container: HTMLVideoElement | undefined = undefined) {
-    this.initPlayer(room, container)
-    console.log('Decode url', this.url)
-  }
-
-  public initPlayer(room: string, container: HTMLVideoElement | undefined = undefined) {
     if (room) {
       this.room = room
-      this.url = `http://localhost:8080/live/${room}.flv`
-      this.player = FlvJs.createPlayer({
-        type: 'flv',
-        url: this.url
-      })
+      this.url = `ws://localhost:4000`
+      this.player = new LiveRTC(this.room)
     }
     if (container) {
       this.setContainer(container)
@@ -43,17 +37,18 @@ export class DecoderWebrtc {
   }
 
   public loadAndPlay() {
-    this.player?.load()
-    this.player?.play()
+    this.player?.connect(this.url)
+    // this.player?.load()
+    // this.player?.play()
   }
 
   public detachMediaElement() {
-    this.player?.detachMediaElement()
-    this.player?.unload()
+    // this.player?.detachMediaElement()
+    // this.player?.unload()
   }
 
   public destroy() {
     this.detachMediaElement()
-    this.player?.destroy()
+    // this.player?.destroy()
   }
 }
