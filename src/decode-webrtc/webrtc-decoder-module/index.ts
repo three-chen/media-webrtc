@@ -22,10 +22,6 @@ class LiveRTC extends EventEmitter {
   //远程流的id
   private remoteStreams: string[] = []
 
-  // public setLocalStream(stream: MediaStream) {
-  //   this.localStream = stream
-  // }
-
   public constructor(roomAlias: string) {
     super()
     // 将EventEmiiter调用的this指定为LiveRTC的this
@@ -47,6 +43,7 @@ class LiveRTC extends EventEmitter {
     this.on('_create_stream', this.handleCreateStream)
     this.on('_add_stream', this.handleAddStream)
     this.on('_heart_beat', this.handleHeartBeat)
+    this.on('_destroy', this.handleDestroy)
   }
 
   /**
@@ -106,30 +103,14 @@ class LiveRTC extends EventEmitter {
     // if (that.localStream) {
     that.emit('_ready')
     // }
-
-    // navigator.mediaDevices
-    //   .getUserMedia(constraints)
-    //   .then((stream: MediaStream) => {
-    //     that.localStream = stream
-
-    //     that.emit('_ready')
-
-    //     const video = document.createElement('video')
-    //     video.srcObject = stream
-    //     video.setAttribute('class', 'video')
-    //     video.setAttribute('autoplay', 'true')
-    //     video.setAttribute('controls', 'true')
-    //     video.setAttribute('playsinline', 'true')
-    //     video.setAttribute('id', 'local')
-    //     that.rtcConfig.localVideoBox!.appendChild(video)
-    //   })
-    //   .catch(err => {
-    //     console.log(err.name + ': ' + err.message)
-    //   })
   }
 
   public attachMediaElement(videoEl: HTMLVideoElement) {
     this.rtcConfig.localVideoEl = videoEl
+  }
+
+  public detachMediaElement() {
+    this.rtcConfig.localVideoEl = undefined
   }
 
   /**
@@ -158,14 +139,6 @@ class LiveRTC extends EventEmitter {
       console.log('ontrack steams', event, this.rtcConfig.socketId)
 
       if (that.remoteStreams.indexOf(event.streams[0].id) === -1) {
-        //   const video = document.createElement('video')
-        //   video.srcObject = event.streams[0]
-        //   video.setAttribute('class', 'video')
-        //   video.setAttribute('autoplay', 'true')
-        //   video.setAttribute('controls', 'true')
-        //   video.setAttribute('playsinline', 'true')
-        //   video.setAttribute('id', socketId)
-        //   that.rtcConfig.localVideoBox!.appendChild(video)
         that.rtcConfig.localVideoEl!.srcObject = event.streams[0]
 
         that.remoteStreams.push(event.streams[0].id)
@@ -250,12 +223,6 @@ class LiveRTC extends EventEmitter {
     that.socket!.ws.send(JSON.stringify(roomSocketEvent))
   }
 
-  // public handleMessage(userName: string, message: string) {
-  //   const div = document.createElement('div')
-  //   div.innerHTML = `<div>${userName}说：</div><div>${message}</div>`
-  //   this.rtcConfig.localChatBox!.appendChild(div)
-  // }
-
   /**
    *
    * @param roomA roomAlias 加入的房间名
@@ -337,13 +304,43 @@ class LiveRTC extends EventEmitter {
     await rpc!.setRemoteDescription(answer)
   }
 
+  public handleDestroy() {
+    const that = this
+    // rpc关闭
+    if (that.remotePeerConn) {
+      for (const rpc of that.remotePeerConn.values()) {
+        rpc.close()
+      }
+      that.remotePeerConn.clear()
+    }
+    that.connSocketIds = []
+    that.remoteStreams = []
+    // socket关闭
+    if (that.socket) {
+      that.socket.clear()
+    }
+  }
+
   public disconnect() {
     const that = this
+    // rpc关闭
+    if (that.remotePeerConn) {
+      for (const rpc of that.remotePeerConn.values()) {
+        rpc.close()
+      }
+      that.remotePeerConn.clear()
+    }
+    that.connSocketIds = []
+    that.remoteStreams = []
     const roomSocketEvent: RoomSocketEvent = {
       eventName: '__remove_peer',
       data: {}
     }
     that.socket!.ws.send(JSON.stringify(roomSocketEvent))
+    // socket关闭
+    if (that.socket) {
+      that.socket.clear()
+    }
   }
 
   public handleRemovePeer(socketId: string) {
@@ -361,11 +358,11 @@ class LiveRTC extends EventEmitter {
         console.log('handleRemovePeer', socketId, '不存在', this.rtcConfig.socketId)
       }
 
-      // 从 localVideoBox 中删除 video 元素，id 为 socketId
-      const videoBox = document.getElementById(socketId)
-      if (videoBox) {
-        videoBox.parentNode!.removeChild(videoBox)
-      }
+      // // 从 localVideoBox 中删除 video 元素，id 为 socketId
+      // const videoBox = document.getElementById(socketId)
+      // if (videoBox) {
+      //   videoBox.parentNode!.removeChild(videoBox)
+      // }
     }
   }
 

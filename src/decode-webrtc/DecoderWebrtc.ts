@@ -43,12 +43,12 @@ export class DecoderWebrtc {
   }
 
   public detachMediaElement() {
-    // this.player?.detachMediaElement()
+    this.player?.detachMediaElement()
     // this.player?.unload()
   }
 
   public destroy() {
     this.detachMediaElement()
-    // this.player?.destroy()
+    this.player?.disconnect()
   }
 }

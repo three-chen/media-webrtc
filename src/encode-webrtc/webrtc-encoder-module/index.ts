@@ -107,32 +107,7 @@ class LiveRTC extends EventEmitter {
     if (that.localStream) {
       that.emit('_ready')
     }
-
-    // navigator.mediaDevices
-    //   .getUserMedia(constraints)
-    //   .then((stream: MediaStream) => {
-    //     that.localStream = stream
-
-    //     that.emit('_ready')
-
-    //     const video = document.createElement('video')
-    //     video.srcObject = stream
-    //     video.setAttribute('class', 'video')
-    //     video.setAttribute('autoplay', 'true')
-    //     video.setAttribute('controls', 'true')
-    //     video.setAttribute('playsinline', 'true')
-    //     video.setAttribute('id', 'local')
-    //     that.rtcConfig.localVideoBox!.appendChild(video)
-    //   })
-    //   .catch(err => {
-    //     console.log(err.name + ': ' + err.message)
-    //   })
   }
-
-  // public attachBox(mediaEl: HTMLDivElement, chatEl: HTMLDivElement) {
-  //   this.rtcConfig.localVideoBox = mediaEl
-  //   this.rtcConfig.localChatBox = chatEl
-  // }
 
   /**
    *
@@ -158,19 +133,6 @@ class LiveRTC extends EventEmitter {
     }
     pc.ontrack = (event: any) => {
       console.log('ontrack steams', event, this.rtcConfig.socketId)
-
-      // if (that.remoteStreams.indexOf(event.streams[0].id) === -1) {
-      //   const video = document.createElement('video')
-      //   video.srcObject = event.streams[0]
-      //   video.setAttribute('class', 'video')
-      //   video.setAttribute('autoplay', 'true')
-      //   video.setAttribute('controls', 'true')
-      //   video.setAttribute('playsinline', 'true')
-      //   video.setAttribute('id', socketId)
-      //   that.rtcConfig.localVideoBox!.appendChild(video)
-
-      //   that.remoteStreams.push(event.streams[0].id)
-      // }
     }
     pc.oniceconnectionstatechange = (event: any) => {
       if (pc.connectionState === 'connected') {
@@ -248,12 +210,6 @@ class LiveRTC extends EventEmitter {
 
     that.socket!.ws.send(JSON.stringify(roomSocketEvent))
   }
-
-  // public handleMessage(userName: string, message: string) {
-  //   const div = document.createElement('div')
-  //   div.innerHTML = `<div>${userName}说：</div><div>${message}</div>`
-  //   this.rtcConfig.localChatBox!.appendChild(div)
-  // }
 
   /**
    *
@@ -336,13 +292,51 @@ class LiveRTC extends EventEmitter {
     await rpc!.setRemoteDescription(answer)
   }
 
+  public destroy() {
+    const that = this
+    if (that.remotePeerConn) {
+      for (const rpc of that.remotePeerConn.values()) {
+        rpc.close()
+      }
+      that.remotePeerConn.clear()
+    }
+
+    that.connSocketIds = []
+    that.localStream?.getTracks().forEach(track => {
+      track.stop()
+    })
+    that.localStream = null
+
+    const roomSocketEvent: RoomSocketEvent = {
+      eventName: '__destroy',
+      data: {}
+    }
+    that.socket!.ws.send(JSON.stringify(roomSocketEvent))
+    if (that.socket) {
+      that.socket.clear()
+    }
+  }
+
   public disconnect() {
     const that = this
+    // rpc关闭
+    if (that.remotePeerConn) {
+      for (const rpc of that.remotePeerConn.values()) {
+        rpc.close()
+      }
+      that.remotePeerConn.clear()
+    }
+    that.connSocketIds = []
+    that.localStream = null
     const roomSocketEvent: RoomSocketEvent = {
       eventName: '__remove_peer',
       data: {}
     }
     that.socket!.ws.send(JSON.stringify(roomSocketEvent))
+    // socket关闭
+    if (that.socket) {
+      that.socket.clear()
+    }
   }
 
   public handleRemovePeer(socketId: string) {

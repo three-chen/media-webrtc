@@ -9,6 +9,7 @@ export class EncoderWebrtc {
   public url: string
   public ffmpeggProcess: any | undefined = undefined
   public liveRTC: LiveRTC
+  public isDesktopStreamCreated: boolean = false
 
   constructor(plat: string, room: string) {
     this.plat = plat
@@ -36,26 +37,40 @@ export class EncoderWebrtc {
   }
 
   public async desktopStreamSpawn() {
-    console.log('desktopStreamSpawn desktopCapturer', desktopCapturer)
-    ipcRenderer.send('main-desktop-stream', '')
+    if (!this.isDesktopStreamCreated) {
+      ipcRenderer.send('main-desktop-stream', '')
 
-    return new Promise((resolve, reject) => {
-      ipcRenderer.on('main-desktop-stream-response', async (event: any, arg: any) => {
-        const sourceId = arg
-        console.log('main-desktop-stream-response', sourceId)
+      return new Promise(async (resolve, reject) => {
+        ipcRenderer.on('main-desktop-stream-response', async (event: any, arg: any) => {
+          const sourceId = arg
+          console.log('main-desktop-stream-response', sourceId)
+          try {
+            const stream = await navigator.mediaDevices.getUserMedia({
+              audio: {
+                mandatory: {
+                  chromeMediaSource: 'desktop'
+                }
+              },
+              video: {
+                mandatory: {
+                  chromeMediaSource: 'desktop'
+                }
+              }
+            })
+            console.log('stream', stream)
+            this.liveRTC.setLocalStream(stream)
+            this.liveRTC.connect(this.url)
+            this.isDesktopStreamCreated = true
+          } catch (e) {
+            console.log('getUserMedia error:', e)
+          }
+          resolve(void 0)
+        })
+      })
+    } else {
+      return new Promise(async (resolve, reject) => {
         try {
           const stream = await navigator.mediaDevices.getUserMedia({
-            // audio: false,
-            // video: {
-            //   mandatory: {
-            //     chromeMediaSource: 'desktop',
-            //     chromeMediaSourceId: sourceId,
-            //     minWidth: 1280,
-            //     maxWidth: 1280,
-            //     minHeight: 720,
-            //     maxHeight: 720
-            //   }
-            // }
             audio: {
               mandatory: {
                 chromeMediaSource: 'desktop'
@@ -69,21 +84,16 @@ export class EncoderWebrtc {
           })
           console.log('stream', stream)
           this.liveRTC.setLocalStream(stream)
-          // console.log(document.getElementsByClassName('video')[0])
-          // ;(document.getElementsByClassName('video')[0] as HTMLVideoElement).srcObject = stream
           this.liveRTC.connect(this.url)
         } catch (e) {
           console.log('getUserMedia error:', e)
         }
         resolve(void 0)
       })
-    })
-    // this.liveRTC.connect(this.url)
+    }
   }
 
   public destroy() {
-    // if (this.ffmpegProcess) {
-    //   this.ffmpegProcess.kill('SIGINT')
-    // }
+    this.liveRTC.destroy()
   }
 }
