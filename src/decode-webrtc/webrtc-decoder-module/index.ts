@@ -341,6 +341,7 @@ class LiveRTC extends EventEmitter {
     if (that.socket) {
       that.socket.clear()
     }
+    console.log('disconnect', this.rtcConfig.socketId)
   }
 
   public handleRemovePeer(socketId: string) {

@@ -47,11 +47,13 @@ export class EncoderWebrtc {
           try {
             const stream = await navigator.mediaDevices.getUserMedia({
               audio: {
+                // @ts-ignore
                 mandatory: {
                   chromeMediaSource: 'desktop'
                 }
               },
               video: {
+                // @ts-ignore
                 mandatory: {
                   chromeMediaSource: 'desktop'
                 }
@@ -72,11 +74,13 @@ export class EncoderWebrtc {
         try {
           const stream = await navigator.mediaDevices.getUserMedia({
             audio: {
+              // @ts-ignore
               mandatory: {
                 chromeMediaSource: 'desktop'
               }
             },
             video: {
+              // @ts-ignore
               mandatory: {
                 chromeMediaSource: 'desktop'
               }

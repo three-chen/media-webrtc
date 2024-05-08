@@ -27,7 +27,6 @@ export class DecoderWebrtc {
 
   public setContainer(container: HTMLVideoElement): void {
     this.container = container
-    this.attachMediaElement()
   }
 
   public attachMediaElement() {
@@ -37,6 +36,7 @@ export class DecoderWebrtc {
   }
 
   public loadAndPlay() {
+    this.attachMediaElement()
     this.player?.connect(this.url)
     // this.player?.load()
     // this.player?.play()
